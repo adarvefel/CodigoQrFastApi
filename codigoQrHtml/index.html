@@ -4,21 +4,26 @@
 <meta charset="UTF-8">
 <title>Generador de Código QR | FastAPI</title>
 <style>
-   body {
+body {
     margin: 0;
     padding: 0;
     font-family: 'Segoe UI', sans-serif;
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* cambio para permitir scroll */
-    min-height: 100vh;       /* mínimo alto de pantalla */
-    padding-top: 50px;       /* separación superior */
-    padding-bottom: 50px;    /* separación inferior */
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 50px 20px;
     background: linear-gradient(270deg, #4A00E0, #8E2DE2, #FF416C, #FF4B2B);
     background-size: 800% 800%;
     animation: gradientBG 15s ease infinite;
-    overflow-y: auto;         /* permite scroll vertical */
+    overflow-y: auto;
     color: #fff;
+}
+
+@keyframes gradientBG {
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
 }
 
 .card {
@@ -30,74 +35,56 @@
     backdrop-filter: blur(15px);
     width: 350px;
     transition: transform 0.3s ease;
-    margin: 20px; /* espacio para que no quede pegada a los bordes */
+    margin: 20px;
+}
+.card:hover { transform: translateY(-5px); }
+
+h1 { margin-bottom: 25px; font-size: 26px; }
+
+input, select, button {
+    width: 80%;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+    outline: none;
+    text-align: center;
 }
 
+button {
+    background: #FFCC00;
+    color: #1E1E1E;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+button:hover { background: #e0b400; }
 
-    .card:hover { transform: translateY(-5px); }
+#qr-container { margin-top: 20px; }
 
-    h1 { margin-bottom: 25px; font-size: 26px; }
+#qrImage {
+    max-width: 100%;
+    border-radius: 12px;
+    border: 3px solid #fff;
+    margin-top: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
 
-    input, button {
-        width: 80%;
-        padding: 12px;
-        margin: 10px 0;
-        border-radius: 10px;
-        border: none;
-        font-size: 16px;
-        outline: none;
-    }
+#downloadLink {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 12px 20px;
+    background: #FFCC00;
+    color: #1E1E1E;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: 0.3s;
+}
+#downloadLink:hover { background: #e0b400; }
 
-    input[type="text"] {
-        background: rgba(255,255,255,0.2);
-        color: #fff;
-        text-align: center;
-    }
-
-    input[type="text"]::placeholder { color: #eee; }
-
-    input[type="color"] {
-        cursor: pointer;
-        height: 40px;
-        padding: 0;
-        border: 2px solid #fff;
-    }
-
-    button {
-        background: #FFCC00;
-        color: #1E1E1E;
-        font-weight: bold;
-        cursor: pointer;
-        transition: 0.3s;
-    }
-
-    button:hover { background: #e0b400; }
-
-    #qr-container { margin-top: 20px; }
-
-    #qrImage {
-        max-width: 100%;
-        border-radius: 12px;
-        border: 3px solid #fff;
-        margin-top: 15px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    }
-
-    #downloadLink {
-        display: inline-block;
-        margin-top: 12px;
-        padding: 12px 20px;
-        background: #FFCC00;
-        color: #1E1E1E;
-        border-radius: 12px;
-        text-decoration: none;
-        font-weight: bold;
-        transition: 0.3s;
-    }
-
-    #downloadLink:hover { background: #e0b400; }
-
-    @media (max-width: 400px) { .card { width: 90%; padding: 25px; } }
+@media (max-width: 400px) { .card { width: 90%; padding: 25px; } }
 </style>
 </head>
 <body>
@@ -109,10 +96,20 @@
         <input type="text" id="texto" placeholder="Escribe el contenido del QR" required>
         <br>
         <label>Color del QR:</label>
-        <input type="color" id="color" value="#000000">
+        <select id="color">
+            <option value="black">Negro</option>
+            <option value="blue">Azul</option>
+            <option value="red">Rojo</option>
+            <option value="green">Verde</option>
+        </select>
         <br>
         <label>Color de fondo:</label>
-        <input type="color" id="backColor" value="#ffffff">
+        <select id="backColor">
+            <option value="white">Blanco</option>
+            <option value="yellow">Amarillo</option>
+            <option value="lightblue">Celeste</option>
+            <option value="lightgreen">Verde claro</option>
+        </select>
         <br>
         <button type="submit">📌 Generar QR</button>
     </form>
@@ -132,6 +129,12 @@ document.getElementById("qrForm").addEventListener("submit", async function(e) {
     const color = document.getElementById("color").value;
     const backColor = document.getElementById("backColor").value;
 
+    // Validar que no sean iguales (QR ilegible)
+    if(color === backColor) {
+        alert("El color del QR y el fondo no pueden ser iguales. Elige otra combinación.");
+        return;
+    }
+
     const formData = new FormData();
     formData.append("texto", texto);
     formData.append("color", color);
@@ -145,11 +148,9 @@ document.getElementById("qrForm").addEventListener("submit", async function(e) {
     if(response.ok) {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
-
         const img = document.getElementById("qrImage");
         img.src = url;
         img.style.display = "block";
-
         const downloadLink = document.getElementById("downloadLink");
         downloadLink.href = url;
         downloadLink.style.display = "inline-block";
